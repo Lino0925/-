@@ -41,6 +41,28 @@
 | `loopy` | `loopy` | 把一次性 prompt 變成會自我改進的重複流程；能找出重複性工作、比對已發布的 loop、稽核與修補 | [Forward-Future/loop-library](https://github.com/Forward-Future/loop-library) |
 | `last30days` | `last30days` | 掃 Reddit、X、YouTube、TikTok、HN、Polymarket、GitHub 近 30 天討論，依真實互動量排序成一份簡報 | [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) |
 | `watch` | `watch` | 讓 Claude「看」影片：yt-dlp 下載、ffmpeg 抽格、抓帶時間軸的逐字稿 | [bradautomates/claude-video](https://github.com/bradautomates/claude-video) |
+| `book-to-skill` | `book-to-skill` | 把書或文件（PDF / EPUB / DOCX / HTML / MD / RTF / MOBI）轉成結構化的 agent skill — 抽出框架、心智模型、原則、技法、反模式，不是做摘要 | [virgiliojr94/book-to-skill](https://github.com/virgiliojr94/book-to-skill) |
+
+### book-to-skill 的兩件事
+
+**一、只用官方 repo。** 上游有一份 [安全公告](https://github.com/virgiliojr94/book-to-skill/blob/master/SECURITY-NOTICE.md)：
+`Leutenegger/book-to-skill` 是惡意的再上傳版本，會關掉 TLS 驗證、把主機與 repo 資訊送到外部
+Cloudflare Worker、列舉本機加密貨幣錢包與 Ledger 的瀏覽器擴充套件資料並上傳，
+在 Windows 上還會解壓執行夾帶的 EXE。這裡裝的是官方的 `virgiliojr94/book-to-skill`
+（commit `8a2cae6`，2026-08-26），已對照公告描述的行為掃過，無命中。
+
+**二、它會自己裝 Python 套件。** 轉檔要用的 parser（pypdf、ebooklib 等）是按需安裝的，
+`--install-missing ask|yes|no` 可以控制。先跑 `--check` 看目前有哪些：
+
+```bash
+python3 .claude/skills/book-to-skill/scripts/extract.py --check
+```
+
+MOBI/AZW 要另外裝 [Calibre](https://calibre-ebook.com)。用法：
+
+```text
+/book-to-skill ~/path/to/your-book.pdf
+```
 
 ### 這兩個要額外裝東西才能跑
 
