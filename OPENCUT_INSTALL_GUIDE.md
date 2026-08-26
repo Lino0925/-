@@ -1,6 +1,9 @@
-# OpenCut 安裝指南（本機）
+# OpenCut 安裝指南
 
 OpenCut 是開源的影片剪輯器（CapCut 的替代品），檔案留在自己電腦上、功能不上鎖。
+
+> **原始碼已經放進這個 repo 的 [`opencut/`](opencut/) 資料夾了**，你 `git pull` 之後
+> 只要跑 `bun install` 就能用，不用再 clone。詳見下面「已經裝好的部分」。
 
 ## 先搞清楚要裝哪一個 repo
 
@@ -41,12 +44,15 @@ curl -fsSL https://bun.sh/install | bash
 
 ## 安裝步驟
 
-以下四步在 Linux + Bun 1.3.11 + Node 22 實測過，`bun install` 約 12 秒裝完 1951 個套件，
+以下步驟在 Linux + Bun 1.3.11 + Node 22 實測過，`bun install` 裝完 1951 個套件，
 `bun dev:web` 起得來，`http://localhost:3000` 回 200。
 
+**第 1 步已經幫你做完了** — 原始碼就在 `opencut/`，直接 `cd opencut` 從第 2 步開始。
+（想自己另外抓一份的話第 1 步指令也一併留著。）
+
 ```bash
-# 1. 取得原始碼
-git clone https://github.com/opencut-app/opencut-classic.git opencut
+# 1. 取得原始碼（已完成，opencut/ 就是這個）
+# git clone https://github.com/opencut-app/opencut-classic.git opencut
 cd opencut
 
 # 2. 建立環境設定檔（.env.example 的預設值就對得上 docker compose，不用改）
@@ -72,7 +78,7 @@ Copy-Item apps/web/.env.example apps/web/.env.local
 
 ## 另一種：整包用 Docker 跑
 
-不想碰 Bun、只想要一個能用的服務，在 repo 根目錄執行：
+不想碰 Bun、只想要一個能用的服務，在 `opencut/` 資料夾裡執行：
 
 ```bash
 docker compose up -d
@@ -100,11 +106,39 @@ docker compose up -d
 
 ---
 
-## 為什麼沒有幫你在這個 session 裝
+## 已經裝好的部分
 
-這次的 Claude 跑在雲端的臨時容器裡，容器一回收東西就沒了，而且你的瀏覽器連不到它的
-`localhost:3000`。OpenCut 這種要開 UI 剪片的工具，一定得裝在你自己的電腦上才有意義 —
-所以我把步驟先實際跑過一遍確認沒問題，再寫成上面這份指南給你照著做。
+`opencut/` 是 [opencut-app/opencut-classic](https://github.com/opencut-app/opencut-classic)
+在 commit `cf5e79e`（2026-05-17）的完整原始碼，1128 個檔案、12 MB，
+只含 git 追蹤的檔案（沒有 node_modules、沒有 build 產物、沒有上游的 .git）。
 
-（同一批連結裡的三個 skill 就沒有這個問題，已經裝進這個 repo 的 `.claude/skills/`，
-詳見 [.claude/skills/README.md](.claude/skills/README.md)。）
+在這次的雲端容器裡實跑驗證過：
+
+- `bun install` → 1951 個套件裝完，exit 0
+- `bun dev:web` → `✓ Ready in 1254ms`，`localhost:3000/` 與 `/projects` 都回 200
+
+容器裡那份 `node_modules`（2.2 GB）不會進 git — `opencut/.gitignore` 已經擋掉了，
+`apps/web/.env.local` 也一樣。所以你拉下來之後要自己跑一次 `bun install`。
+
+### 你要用的時候
+
+```bash
+cd opencut
+cp apps/web/.env.example apps/web/.env.local   # Windows: Copy-Item apps/web/.env.example apps/web/.env.local
+bun install
+bun dev:web
+```
+
+開 <http://localhost:3000>。
+
+### 想更新到上游最新版
+
+`opencut/` 是直接複製進來的（不是 submodule），要更新就重新抓一次：
+
+```bash
+git clone --depth 1 https://github.com/opencut-app/opencut-classic.git /tmp/oc
+rm -rf opencut && mkdir opencut
+git -C /tmp/oc archive --format=tar HEAD | tar -x -C opencut
+```
+
+不過 classic 已經封存、不再維護，上游大概不會再動了。
