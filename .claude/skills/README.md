@@ -134,7 +134,7 @@ PDF 兩章正確拆成 `^ch-01` / `^ch-02` 錨點，YAML frontmatter 與 callout
 
 | 檔案 | 差異 | 影響 |
 | --- | --- | --- |
-| `doc-to-md/scripts/doc_to_md.py` | 4 行正規表示式的 `一-鿿` 變成等價的字面字元 `一-鿿` | 無。`re` 模組兩種寫法解析出同一個字元類別；已用含 `numbered` 規則與檔名淨化的測試檔比對，兩版輸出位元組相同 |
+| `doc-to-md/scripts/doc_to_md.py` | 4 行正規表示式裡的 Unicode 逸出寫法（反斜線 u4e00 到反斜線 u9fff）變成等價的字面字元 `一-鿿` | 無。`re` 模組對兩種寫法解析出同一個字元類別；已用含 `numbered` 規則與檔名淨化的測試檔比對，兩版輸出位元組相同 |
 | `rightproblem-coach/references/template.html` | 檔尾多一個換行 | 無。HTML 不受影響 |
 
 要位元組完全等同原始 zip，在 git push 正常的 session 裡重推一次即可。
