@@ -1,7 +1,8 @@
 # 已安裝的 Claude Code Skills
 
 這個資料夾裡的 skill 會在「這個 repo 的任何 Claude Code session」自動載入
-（Claude Code 會讀取專案根目錄的 `.claude/skills/`）。全部都是從上游 repo 直接複製，內容未改動。
+（Claude Code 會讀取專案根目錄的 `.claude/skills/`）。全部都是從上游 repo 或使用者提供的 zip 直接複製；
+除了下方「與原始 zip 的兩處差異」明列的兩點之外，內容未改動。
 
 ---
 
@@ -87,6 +88,63 @@ skill 內附 `doctor` 健檢指令，可以先跑它看哪些源沒設好。
 
 ---
 
+## 四、思考 / 文件處理
+
+| 資料夾 | skill 名稱 | 用途 | 來源 |
+| --- | --- | --- | --- |
+| `rightproblem-coach` | `rightproblem-coach` | 問題結構化教練：5 Whys 根因分析、問題重構、症狀 vs 問題、100x 資源測試、優先級分類、魔鬼代言人，最後輸出 9 大區塊的視覺化 HTML「問題規格書」。基於密涅瓦大學 #問對問題 思考習慣 + PRD 框架 | 使用者提供的 zip（v2.0，2026-03-09） |
+| `doc-to-md` | `doc-to-md` | PDF / EPUB / TXT 轉乾淨 Markdown：YAML frontmatter、章節錨點、Obsidian callout 摘要框、簡體自動轉繁體。不需外部 API | 使用者提供的 zip（v1.4.6） |
+
+### doc-to-md 的兩種跑法
+
+**Option A：用 skill 內建腳本（預設，什麼都不用裝）**
+`scripts/doc_to_md.py` 就在 skill 資料夾裡，Claude 直接呼叫。只需要 Python 套件：
+
+```bash
+pip install -r .claude/skills/doc-to-md/scripts/requirements.txt
+```
+
+需要的套件：PyMuPDF、ebooklib、beautifulsoup4、chardet、opencc-python-reimplemented、lxml。
+
+**Option B：本機安裝（開機較快，可在終端機直接用）**
+
+`install.sh` / `install.bat` 要**從你原本的 zip 裡執行**，不要從這個 repo 執行 ——
+它們會去找同層的 `skill.zip`，那個檔案只存在於原始安裝包裡：
+
+```bash
+bash ~/Downloads/doc-to-md-installer/install.sh      # Mac / Linux
+# Windows：雙擊 doc-to-md-installer 裡的 install.bat
+```
+
+它會在 `~/.doc-to-md/` 建 venv、裝套件、複製腳本、建一個 `doc-to-md` 啟動器，
+並**在你的 `~/.zshrc`（或 `.bash_profile` / `.bashrc`）加一行 PATH**。
+不想被改 shell 設定就走 Option A。
+
+安裝包裡的 `install.sh`、`install.bat`、`README.md`、`USAGE.md` 都沒有收進 repo：
+腳本脫離原始安裝包就跑不起來，說明文件則是那份 zip 的隨附文件，留在原處即可。
+
+已實測（Python 3.11）：`--help` 正常；簡體 TXT 轉出來是道地繁中
+（数据结构→資料結構、算法→演算法、计算机→電腦，不是單純字符替換）；
+PDF 兩章正確拆成 `^ch-01` / `^ch-02` 錨點，YAML frontmatter 與 callout 摘要框都對。
+
+### 與原始 zip 的兩處差異（推 repo 時產生，已實測無影響）
+
+這個 session 的 git push 憑證中途失效，只能改用 GitHub API 逐檔推送，
+過程中有兩個檔案被動到。兩處都保留在 repo 裡，記錄如下：
+
+| 檔案 | 差異 | 影響 |
+| --- | --- | --- |
+| `doc-to-md/scripts/doc_to_md.py` | 4 行正規表示式的 `一-鿿` 變成等價的字面字元 `一-鿿` | 無。`re` 模組兩種寫法解析出同一個字元類別；已用含 `numbered` 規則與檔名淨化的測試檔比對，兩版輸出位元組相同 |
+| `rightproblem-coach/references/template.html` | 檔尾多一個換行 | 無。HTML 不受影響 |
+
+要位元組完全等同原始 zip，在 git push 正常的 session 裡重推一次即可。
+
+**一個小地雷**：輸出檔名固定是「原檔名 + `_知識庫.md`」。
+所以 `test.pdf` 和 `test.txt` 轉到同一個資料夾時，後跑的會蓋掉先跑的。
+同名不同副檔名的檔案記得分開輸出目錄。
+
+---
+
 ## 沒辦法裝進這裡的三個
 
 那份 Top 10 清單裡有三個不是 Claude Code skill，得各自安裝：
@@ -113,6 +171,8 @@ Shannon 會對執行中的目標站真的打 exploit，**只能對自己擁有�
 /humanizer-zh-tw 幫我把 劇本/紅衣/大綱.md 的語氣改自然一點。
 /text-watermark-cleaner-zh-tw 先檢查 article.md 有沒有隱形字元，先不要改內容。
 /animation-reference 我想讓產品卡片展開成全螢幕詳情頁，但不知道這動畫叫什麼。
+/rightproblem-coach 我團隊交付一直延遲，幫我分析這個問題。
+/doc-to-md 幫我把這個 PDF 轉成 Markdown：~/Desktop/book.pdf
 ```
 
 ### text-watermark-cleaner 附帶的腳本（已在 Python 3.11 實測）
