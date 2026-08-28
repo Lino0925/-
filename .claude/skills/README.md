@@ -145,6 +145,61 @@ PDF 兩章正確拆成 `^ch-01` / `^ch-02` 錨點，YAML frontmatter 與 callout
 
 ---
 
+## 五、法律（這個是 plugin，不在 `.claude/skills/` 裡）
+
+### taiwan-claude-legal — 台灣法律合約審查
+
+[tern/taiwan-claude-legal](https://github.com/tern/taiwan-claude-legal)，MIT，v1.1.0。
+用台灣法規對合約做風險審查：NDA、勞動契約、服務合約、股東協議、隱私權政策。
+
+內建法條全文（從法務部全國法規資料庫抓的）：
+
+| 法規 | 條文檔行數 |
+| --- | --- |
+| 民法 | 4,649 |
+| 公司法 | 1,688 |
+| 著作權法 | 527 |
+| 勞動基準法 | 332 |
+| 個人資料保護法 | 224 |
+
+它提供 skill `taiwan-legal-audit` 和斜線指令 `/audit`。
+
+**為什麼不像上面那些直接複製進 `.claude/skills/`：**
+
+1. `skills/taiwan-legal-audit/SKILL.md` 明寫「You MUST read the relevant `articles.md` files from `laws/`」，
+   那是**相對 plugin 根目錄**的路徑。只搬 skill 資料夾，法條就找不到了。
+2. 上游有 GitHub Action 每天自動更新法條（`.github/workflows/update-laws.yml`）。
+   凍結一份快照進這個 repo，法條會過時 —— 拿舊法條審合約比不審更糟。
+
+所以改成在 `.claude/settings.json` 宣告 marketplace，讓 Claude Code 自己去抓、自己更新。
+
+**這個 repo 已經設好了**（`.claude/settings.json`），clone 下來的人第一次開 session 時
+Claude Code 會提示安裝。要手動裝或想裝成全域的：
+
+```bash
+claude plugin marketplace add tern/taiwan-claude-legal
+claude plugin install taiwan-claude-legal
+```
+
+確認裝好：
+
+```bash
+claude plugin details taiwan-claude-legal
+```
+
+常駐 context 成本約 131 tokens（法條本文是要用到才讀，不會一直掛著）。
+
+**用法**
+
+```text
+/audit 幫我看這份 NDA：contracts/nda.md
+把 劇本外包合約.docx 用台灣勞基法和著作權法審一遍。
+```
+
+這是輔助工具，不是律師。簽之前該找律師還是要找。
+
+---
+
 ## 沒辦法裝進這裡的三個
 
 那份 Top 10 清單裡有三個不是 Claude Code skill，得各自安裝：
@@ -173,6 +228,7 @@ Shannon 會對執行中的目標站真的打 exploit，**只能對自己擁有�
 /animation-reference 我想讓產品卡片展開成全螢幕詳情頁，但不知道這動畫叫什麼。
 /rightproblem-coach 我團隊交付一直延遲，幫我分析這個問題。
 /doc-to-md 幫我把這個 PDF 轉成 Markdown：~/Desktop/book.pdf
+/audit 幫我看這份 NDA：contracts/nda.md
 ```
 
 ### text-watermark-cleaner 附帶的腳本（已在 Python 3.11 實測）
@@ -202,4 +258,10 @@ Get-ChildItem .\.claude\skills -Directory |
 
 ## 更新
 
-全部是直接複製上游的，要更新就重抓一次對應 repo 再蓋掉。
+`.claude/skills/` 底下的全部是直接複製上游的，要更新就重抓一次對應 repo 再蓋掉。
+
+taiwan-claude-legal 是 plugin，不用手動更新：
+
+```bash
+claude plugin update taiwan-claude-legal
+```

@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "taiwan-legal-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "tern/taiwan-claude-legal"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "taiwan-claude-legal@taiwan-legal-marketplace": true
+  }
+}
