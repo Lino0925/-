@@ -200,6 +200,62 @@ claude plugin details taiwan-claude-legal
 
 ---
 
+## 六、政府開放資料 / 法規（自己寫的，不是複製上游）
+
+這兩個是照著實際打過的 API 行為寫出來的，不是抄文件。已同時裝成
+**個人技能**（`~/.claude/skills/`，所有專案都能用）和專案技能。
+
+| 資料夾 | 用途 | 資料來源 |
+| --- | --- | --- |
+| `data-gov-tw` | 查／下載政府開放資料平臺的資料集 | [data.gov.tw](https://data.gov.tw) |
+| `moj-law` | 查法規條文原文、編章節、關鍵字搜尋 | [全國法規資料庫](https://law.moj.gov.tw) + [kong0107 鏡像](https://github.com/kong0107/mojLawSplitJSON) |
+
+### data.gov.tw：實測釐清的三件事
+
+1. **`/api/v1/datasets` 不存在**（回 404）。網路上很多文章寫這個路徑。
+   實際可用的是 `/api/v2/rest/dataset/{數字ID}`，而且結尾一定要數字，
+   接 `search`／`list` 會回「Expected number」。
+2. **查詢／清單要 API 金鑰**，用 `Authorization: <金鑰>` 標頭，**不是** `Bearer`。
+   沒金鑰就到網站上找 ID（網站搜尋是前端渲染的，爬 HTML 拿不到結果）。
+3. **平臺只存中介資料，檔案在各機關自己的伺服器上。**
+   所以會遇到編碼宣告錯誤、憑證鏈不完整。腳本會實際試解編碼，
+   TLS 失敗時給診斷而不是 traceback——**不繞過憑證驗證**。
+
+### moj-law：kong0107 三個 repo 的版本審核
+
+| repo | 最新 tag | 判斷 |
+| --- | --- | --- |
+| **`mojLawSplitJSON`** | `20260814_arrange` | **用這個**，688 個 tag，仍在更新 |
+| `mojLawSplitXML` | `20260807` | 切自舊版 XML，274 個 tag，落後 |
+| `mojLawSplit` | 2022 | 只有程式碼沒資料，要自己重跑轉檔 |
+
+實測 `freshness`：官方資料日 **2026-08-21**、鏡像 **2026-08-14**。
+官方比較新但是整包 25 MB 單檔；鏡像是一法一檔還多了 `divisions`
+編章節樹。要最新用官方，要查單條用鏡像。
+
+**一個會全錯的細節**：鏡像的 `articles[].number` 是 **條次 × 100 + 之N**，
+第 15 條是 `1500`、第 15 條之1 是 `1501`。直接當條次用會整批對不上。
+
+### 用法
+
+```bash
+M=~/.claude/skills/moj-law/scripts/mojlaw.py
+python3 $M article B0000001 184     # 民法第184條
+python3 $M article B0000001 15-1    # 「之N」寫 15-1
+python3 $M grep J0070017 攝影        # 著作權法裡搜關鍵字
+python3 $M find 勞動基準             # 用名稱找 pcode
+python3 $M freshness                 # 比對官方與鏡像日期
+
+S=~/.claude/skills/data-gov-tw/scripts/datagov.py
+python3 $S meta 6019                # 中介資料
+python3 $S fetch 8409 --out d.csv   # 下載實際資料
+```
+
+`moj-law` 是 `taiwan-claude-legal`（第五節）的資料層：
+前者負責把正確條文抓出來，後者負責拿條文做合約審查。
+
+---
+
 ## 沒辦法裝進這裡的三個
 
 那份 Top 10 清單裡有三個不是 Claude Code skill，得各自安裝：
@@ -229,6 +285,8 @@ Shannon 會對執行中的目標站真的打 exploit，**只能對自己擁有�
 /rightproblem-coach 我團隊交付一直延遲，幫我分析這個問題。
 /doc-to-md 幫我把這個 PDF 轉成 Markdown：~/Desktop/book.pdf
 /audit 幫我看這份 NDA：contracts/nda.md
+/moj-law 民法第184條的原文給我。
+/data-gov-tw 幫我抓 data.gov.tw 8409 這個資料集。
 ```
 
 ### text-watermark-cleaner 附帶的腳本（已在 Python 3.11 實測）
