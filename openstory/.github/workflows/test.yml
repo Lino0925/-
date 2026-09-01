@@ -1,0 +1,314 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# E2E is fully hermetic — LLM + fal.ai calls hit the aimock server, D1 + R2 are
+# local Miniflare, and login uses the dev email-OTP backdoor — so the suite needs
+# no real credentials. These fixed throwaway values replace the former `secrets.*`
+# + `environment: staging` wiring, which GitHub (correctly) withholds from fork
+# PRs; that was the sole reason e2e failed on external contributions.
+env:
+  E2E_BETTER_AUTH_SECRET: e2e-not-a-real-secret-do-not-use-in-production
+  E2E_GOOGLE_CLIENT_ID: test-google-client-id
+  E2E_GOOGLE_CLIENT_SECRET: test-google-client-secret
+  E2E_EMAIL_FROM: e2e@example.com
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Check migration chain + schema drift
+        # Two different failures, both silent until they bite:
+        #
+        # 1. `db:check` — drizzle-kit's own journal validation (duplicate
+        #    indices / conflicting prefixes from parallel branches).
+        #
+        # 2. The regenerate-and-diff below is the one that catches SNAPSHOT
+        #    drift, which `db:check` does NOT detect. drizzle-kit diffs the
+        #    schema against the latest `snapshot.json`; when branches merge, git
+        #    merges the migration files cleanly but the snapshot is a DERIVED
+        #    artifact and the later-timestamped one silently wins. #1085's
+        #    snapshots predated #1069's `model_pricing` tables, so the merged
+        #    baseline lost three tables and the next `db:generate` tried to
+        #    CREATE them again — which would fail on prod, rolling back the
+        #    whole migration body with it.
+        #
+        #    If schema and snapshot agree, `db:generate` is a no-op and the tree
+        #    stays clean. Anything appearing here means either a stale snapshot
+        #    or a schema edit committed without its migration (the column-default
+        #    rebuild trap in CLAUDE.md).
+        run: |
+          bun db:check
+          bun db:generate
+          if [ -n "$(git status --porcelain drizzle/migrations)" ]; then
+            echo "::error::Schema and migrations are out of sync. Run 'bun db:generate' locally and commit the result (see CLAUDE.md § schema-drift trap)."
+            git status --porcelain drizzle/migrations
+            exit 1
+          fi
+
+      - name: Run type checking
+        run: bun typecheck
+
+      - name: Run linting
+        run: bun lint
+
+      - name: Check formatting
+        run: bun format:check
+
+      - name: Check dead code (knip)
+        run: bun dead-code
+
+      - name: Run tests
+        run: bun run test
+
+  build-e2e:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build worker for E2E
+        # build:e2e bakes in VITE_APP_URL=http://localhost:3001 and
+        # VITE_DISABLE_DEVTOOLS=true at build time (Vite inlines VITE_* envs).
+        run: bun run build:e2e
+        env:
+          VITE_R2_PUBLIC_ASSETS_DOMAIN: ${{ vars.VITE_R2_PUBLIC_ASSETS_DOMAIN }}
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-output
+          include-hidden-files: true
+          path: dist
+          retention-days: 1
+          if-no-files-found: error
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build-e2e
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Setup test D1 + seed
+        run: bun run test:e2e:setup
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-output
+          path: dist
+
+      - name: Write .dev.vars for wrangler dev
+        # cf-plugin / wrangler dev exposes vars on the Workerd `env` binding
+        # from `.dev.vars` (or wrangler.jsonc `vars:`). Step `env:` only sets
+        # process.env, which doesn't reach the worker.
+        # IMPORTANT: wrangler dev resolves `.dev.vars` relative to the config
+        # file. The built e2e path uses `-c dist/server/wrangler.json`, so the
+        # file MUST live next to that config (`dist/server/.dev.vars`) —
+        # writing it at the project root is invisible to `wrangler -c`.
+        # All values are hermetic constants (see top-level `env:`): the worker
+        # only signs throwaway sessions, fal.ai/LLM go through aimock, and no
+        # test exercises real Google OAuth or email delivery.
+        run: |
+          # No R2 creds or R2_PUBLIC_STORAGE_DOMAIN: e2e R2 is the local
+          # Miniflare binding, with reads served by the worker's /r2/$ route.
+          # No XAI_API_KEY either — that would route Grok natively (#1167),
+          # past aimock, and no xAI fixtures are recorded. Keep it unset.
+          cat > dist/server/.dev.vars <<EOF
+          BETTER_AUTH_SECRET=$E2E_BETTER_AUTH_SECRET
+          BETTER_AUTH_URL=http://localhost:3001
+          OPENROUTER_KEY=test-mock-key
+          OPENROUTER_BASE_URL=http://localhost:4010
+          FAL_KEY=test-mock-key
+          GOOGLE_CLIENT_ID=$E2E_GOOGLE_CLIENT_ID
+          GOOGLE_CLIENT_SECRET=$E2E_GOOGLE_CLIENT_SECRET
+          EMAIL_FROM=$E2E_EMAIL_FROM
+          E2E_TEST=true
+          VITE_APP_URL=http://localhost:3001
+          EOF
+          # Mirror at project root for the non-built (vite dev) path.
+          cp dist/server/.dev.vars .dev.vars
+
+      - name: Prepare .wrangler/deploy/config.json for built e2e (vite preview + CF plugin)
+        # @cloudflare/vite-plugin writes this file during `vite build` (its
+        # writeBundle hook → writeDeployConfig). It lives at the Vite project
+        # root, NOT under dist/, so the upload-artifact step above (path:
+        # dist) doesn't include it. wrangler only *reads* this file — it
+        # never writes it — so a `wrangler ... --dry-run` "prepare" step is a
+        # no-op. We recreate it directly with the same content vite build
+        # would have produced. configPath is relative to .wrangler/deploy/.
+        run: |
+          mkdir -p .wrangler/deploy
+          printf '%s' '{"configPath":"../../dist/server/wrangler.json","auxiliaryWorkers":[]}' \
+            > .wrangler/deploy/config.json
+
+      - name: Run E2E tests
+        run: bun run test:e2e
+        env:
+          E2E_TEST: 'true'
+          E2E_BUILT: 'true'
+          # NOT setting CLOUDFLARE_ENV: built path uses
+          # dist/server/wrangler.json where [env.test] bindings are already
+          # baked into the top level (build:e2e ran with CLOUDFLARE_ENV=test).
+          # Re-setting it would trigger a "no environment named test" warning.
+          # No CLOUDFLARE_API_TOKEN needed: all bindings (D1 + R2) are local
+          # Miniflare, so wrangler skips the remote-proxy auth check.
+          BETTER_AUTH_URL: http://localhost:3001
+          VITE_R2_PUBLIC_ASSETS_DOMAIN: ${{ vars.VITE_R2_PUBLIC_ASSETS_DOMAIN }}
+          # Hermetic constants — see top-level `env:`. The built worker reads
+          # auth/creds from dist/server/.dev.vars; these process.env values are
+          # only for any node-side test tooling and never leave the runner.
+          GOOGLE_CLIENT_ID: ${{ env.E2E_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.E2E_GOOGLE_CLIENT_SECRET }}
+          BETTER_AUTH_SECRET: ${{ env.E2E_BETTER_AUTH_SECRET }}
+          # AI services — LLM calls mocked via aimock server, fal.ai via Playwright routes
+          FAL_KEY: test-mock-key
+          OPENROUTER_KEY: test-mock-key
+          OPENROUTER_BASE_URL: http://localhost:4010
+          EMAIL_FROM: ${{ env.E2E_EMAIL_FROM }}
+
+  e2e-full-pipeline:
+    runs-on: ubuntu-latest
+    needs: build-e2e
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Setup test D1 + seed
+        run: bun run test:e2e:setup
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-output
+          path: dist
+
+      - name: Write .dev.vars for wrangler dev
+        # See e2e job above. Built path uses `wrangler dev -c
+        # dist/server/wrangler.json` which resolves `.dev.vars` relative to
+        # the config, so the file must live in dist/server/. Values are
+        # hermetic constants (see top-level `env:`).
+        run: |
+          # No R2 creds or R2_PUBLIC_STORAGE_DOMAIN: e2e R2 is the local
+          # Miniflare binding, with reads served by the worker's /r2/$ route.
+          # No XAI_API_KEY either — that would route Grok natively (#1167),
+          # past aimock, and no xAI fixtures are recorded. Keep it unset.
+          cat > dist/server/.dev.vars <<EOF
+          BETTER_AUTH_SECRET=$E2E_BETTER_AUTH_SECRET
+          BETTER_AUTH_URL=http://localhost:3001
+          OPENROUTER_KEY=test-mock-key
+          OPENROUTER_BASE_URL=http://localhost:4010
+          FAL_KEY=test-mock-key
+          FAL_PROXY_URL=http://localhost:4010/fal
+          GOOGLE_CLIENT_ID=$E2E_GOOGLE_CLIENT_ID
+          GOOGLE_CLIENT_SECRET=$E2E_GOOGLE_CLIENT_SECRET
+          EMAIL_FROM=$E2E_EMAIL_FROM
+          E2E_TEST=true
+          E2E_FULL_PIPELINE=true
+          VITE_APP_URL=http://localhost:3001
+          EOF
+          cp dist/server/.dev.vars .dev.vars
+
+      - name: Prepare .wrangler/deploy/config.json for built e2e (vite preview + CF plugin)
+        # Same as the regular e2e job — see comment there for rationale.
+        run: |
+          mkdir -p .wrangler/deploy
+          printf '%s' '{"configPath":"../../dist/server/wrangler.json","auxiliaryWorkers":[]}' \
+            > .wrangler/deploy/config.json
+
+      - name: Run full-pipeline E2E test
+        run: bun run test:e2e:full
+        env:
+          PLAYWRIGHT_FULL_PIPELINE: 'true'
+          E2E_TEST: 'true'
+          E2E_BUILT: 'true'
+          E2E_FULL_PIPELINE: 'true'
+          # No CLOUDFLARE_ENV: bindings baked into dist/server/wrangler.json
+          # at build time. See e2e job above for full rationale.
+          # No CLOUDFLARE_API_TOKEN needed: all bindings (D1 + R2) are local
+          # Miniflare, so wrangler skips the remote-proxy auth check.
+          BETTER_AUTH_URL: http://localhost:3001
+          VITE_R2_PUBLIC_ASSETS_DOMAIN: ${{ vars.VITE_R2_PUBLIC_ASSETS_DOMAIN }}
+          # Hermetic constants — see top-level `env:`. The built worker reads
+          # auth/creds from dist/server/.dev.vars; these process.env values are
+          # only for any node-side test tooling and never leave the runner.
+          GOOGLE_CLIENT_ID: ${{ env.E2E_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.E2E_GOOGLE_CLIENT_SECRET }}
+          BETTER_AUTH_SECRET: ${{ env.E2E_BETTER_AUTH_SECRET }}
+          # AI services — both LLM and fal.ai go through aimock (port 4010)
+          FAL_KEY: test-mock-key
+          FAL_PROXY_URL: http://localhost:4010/fal
+          OPENROUTER_KEY: test-mock-key
+          OPENROUTER_BASE_URL: http://localhost:4010
+          EMAIL_FROM: ${{ env.E2E_EMAIL_FROM }}
+
+      - name: Upload full-pipeline e2e results
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-full-pipeline-results
+          path: e2e/results/
+          retention-days: 7
+          if-no-files-found: ignore

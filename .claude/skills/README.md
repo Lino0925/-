@@ -1,0 +1,325 @@
+# 已安裝的 Claude Code Skills
+
+這個資料夾裡的 skill 會在「這個 repo 的任何 Claude Code session」自動載入
+（Claude Code 會讀取專案根目錄的 `.claude/skills/`）。全部都是從上游 repo 或使用者提供的 zip 直接複製；
+除了下方「與原始 zip 的兩處差異」明列的兩點之外，內容未改動。
+
+---
+
+## 一、寫作 / 文字
+
+| 資料夾 | skill 名稱 | 用途 | 來源 |
+| --- | --- | --- | --- |
+| `humanizer-zh-tw` | `humanizer-zh-tw` | 繁體中文去 AI 味 | [kevintsai1202/Humanizer-zh-TW](https://github.com/kevintsai1202/Humanizer-zh-TW) |
+| `text-watermark-cleaner-zh-tw` | `text-watermark-cleaner-zh-tw` | 檢查／清除隱形 Unicode、zero-width、AI provenance 標記 | 同上（附屬 skill） |
+| `stop-slop` | `stop-slop` | 英文版去 AI 味：8 類 AI 寫作痕跡（禁用詞、陳腔濫調、被動語態、破折號、空泛斷言） | [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) |
+| `output-skill` | `full-output-enforcement` | 逼 agent 輸出完整內容，不要偷懶省略 | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) |
+
+`humanizer-zh-tw` 管繁中、`stop-slop` 管英文，兩個不衝突。
+要清隱形字元一律用 `text-watermark-cleaner-zh-tw`，不要跟去 AI 味混用。
+
+## 二、前端 / 設計
+
+| 資料夾 | skill 名稱 | 用途 | 來源 |
+| --- | --- | --- | --- |
+| `taste-skill` | `design-taste-frontend` | 反 AI 味前端主 skill：landing page、作品集、改版 | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) |
+| `minimalist-skill` | `minimalist-ui` | 極簡風變體 | 同上 |
+| `brutalist-skill` | `industrial-brutalist-ui` | 工業／粗獷風變體 | 同上 |
+| `soft-skill` | `high-end-visual-design` | 高級感 soft-ui 變體 | 同上 |
+| `redesign-skill` | `redesign-existing-projects` | 既有專案改版，先 audit 再動手 | 同上 |
+| `image-to-code-skill` | `image-to-code` | 設計圖轉程式碼 | 同上 |
+| `unslop-ui` | `unslop-ui` | 拆掉「一看就 AI 做的」網站特徵：預設 shadcn/Tailwind、紫色漸層、emoji 當 icon、置中 hero + 三張卡片。基於 47 個 subreddit、320 萬則貼文的分析 | [JCarterJohnson/vibecoded-design-tells](https://github.com/JCarterJohnson/vibecoded-design-tells) |
+| `animation-reference` | `animation-reference` | 說不出名字的網頁／UI 動效 → 正式名稱、參考站、可實作的 motion spec | [CHENG-LIANG1/awesome-animations](https://github.com/CHENG-LIANG1/awesome-animations) |
+
+`taste-skill` 上游還有 `brandkit`、`stitch-skill`、`imagegen-frontend-web/mobile`、`gpt-tasteskill`、
+`taste-skill-v1` 等變體沒裝（重複或非 Claude Code 取向）。要補裝就從上游 repo 的 `skills/` 複製對應資料夾進來。
+
+## 三、工程 / 研究
+
+| 資料夾 | skill 名稱 | 用途 | 來源 |
+| --- | --- | --- | --- |
+| `improve` | `improve` | 掃整個 codebase，產出可交給便宜模型執行的改進計畫。**對原始碼唯讀，自己不動手改** | [shadcn/improve](https://github.com/shadcn/improve) |
+| `loopy` | `loopy` | 把一次性 prompt 變成會自我改進的重複流程；能找出重複性工作、比對已發布的 loop、稽核與修補 | [Forward-Future/loop-library](https://github.com/Forward-Future/loop-library) |
+| `last30days` | `last30days` | 掃 Reddit、X、YouTube、TikTok、HN、Polymarket、GitHub 近 30 天討論，依真實互動量排序成一份簡報 | [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill) |
+| `watch` | `watch` | 讓 Claude「看」影片：yt-dlp 下載、ffmpeg 抽格、抓帶時間軸的逐字稿 | [bradautomates/claude-video](https://github.com/bradautomates/claude-video) |
+| `book-to-skill` | `book-to-skill` | 把書或文件（PDF / EPUB / DOCX / HTML / MD / RTF / MOBI）轉成結構化的 agent skill — 抽出框架、心智模型、原則、技法、反模式，不是做摘要 | [virgiliojr94/book-to-skill](https://github.com/virgiliojr94/book-to-skill) |
+
+### book-to-skill 的兩件事
+
+**一、只用官方 repo。** 上游有一份 [安全公告](https://github.com/virgiliojr94/book-to-skill/blob/master/SECURITY-NOTICE.md)：
+`Leutenegger/book-to-skill` 是惡意的再上傳版本，會關掉 TLS 驗證、把主機與 repo 資訊送到外部
+Cloudflare Worker、列舉本機加密貨幣錢包與 Ledger 的瀏覽器擴充套件資料並上傳，
+在 Windows 上還會解壓執行夾帶的 EXE。這裡裝的是官方的 `virgiliojr94/book-to-skill`
+（commit `8a2cae6`，2026-08-26），已對照公告描述的行為掃過，無命中。
+
+**二、它會自己裝 Python 套件。** 轉檔要用的 parser（pypdf、ebooklib 等）是按需安裝的，
+`--install-missing ask|yes|no` 可以控制。先跑 `--check` 看目前有哪些：
+
+```bash
+python3 .claude/skills/book-to-skill/scripts/extract.py --check
+```
+
+MOBI/AZW 要另外裝 [Calibre](https://calibre-ebook.com)。用法：
+
+```text
+/book-to-skill ~/path/to/your-book.pdf
+```
+
+### 這兩個要額外裝東西才能跑
+
+**`watch`** 需要 `ffmpeg`、`ffprobe`、`yt-dlp`：
+
+```bash
+# macOS
+brew install ffmpeg yt-dlp
+# Windows
+winget install Gyan.FFmpeg && winget install yt-dlp.yt-dlp
+# Linux
+sudo apt install ffmpeg && pipx install yt-dlp
+```
+
+影片沒有內建字幕時要走 Whisper，需要 `GROQ_API_KEY`（較便宜）或 `OPENAI_API_KEY`，
+寫進 `~/.config/watch/.env`。不想設就加 `--no-whisper`，只拿畫面不拿逐字稿。
+
+**`last30days`** 的資料源多半要 API key（`SCRAPECREATORS_API_KEY`、`BRAVE_API_KEY`、
+`EXA_API_KEY`、`PERPLEXITY_API_KEY` 等，看你要開哪些來源）。
+skill 內附 `doctor` 健檢指令，可以先跑它看哪些源沒設好。
+上游的 14 MB demo 素材（範例圖片與 mp3）沒有複製進來，不影響功能。
+
+---
+
+## 四、思考 / 文件處理
+
+| 資料夾 | skill 名稱 | 用途 | 來源 |
+| --- | --- | --- | --- |
+| `rightproblem-coach` | `rightproblem-coach` | 問題結構化教練：5 Whys 根因分析、問題重構、症狀 vs 問題、100x 資源測試、優先級分類、魔鬼代言人，最後輸出 9 大區塊的視覺化 HTML「問題規格書」。基於密涅瓦大學 #問對問題 思考習慣 + PRD 框架 | 使用者提供的 zip（v2.0，2026-03-09） |
+| `doc-to-md` | `doc-to-md` | PDF / EPUB / TXT 轉乾淨 Markdown：YAML frontmatter、章節錨點、Obsidian callout 摘要框、簡體自動轉繁體。不需外部 API | 使用者提供的 zip（v1.4.6） |
+
+### doc-to-md 的兩種跑法
+
+**Option A：用 skill 內建腳本（預設，什麼都不用裝）**
+`scripts/doc_to_md.py` 就在 skill 資料夾裡，Claude 直接呼叫。只需要 Python 套件：
+
+```bash
+pip install -r .claude/skills/doc-to-md/scripts/requirements.txt
+```
+
+需要的套件：PyMuPDF、ebooklib、beautifulsoup4、chardet、opencc-python-reimplemented、lxml。
+
+**Option B：本機安裝（開機較快，可在終端機直接用）**
+
+`install.sh` / `install.bat` 要**從你原本的 zip 裡執行**，不要從這個 repo 執行 ——
+它們會去找同層的 `skill.zip`，那個檔案只存在於原始安裝包裡：
+
+```bash
+bash ~/Downloads/doc-to-md-installer/install.sh      # Mac / Linux
+# Windows：雙擊 doc-to-md-installer 裡的 install.bat
+```
+
+它會在 `~/.doc-to-md/` 建 venv、裝套件、複製腳本、建一個 `doc-to-md` 啟動器，
+並**在你的 `~/.zshrc`（或 `.bash_profile` / `.bashrc`）加一行 PATH**。
+不想被改 shell 設定就走 Option A。
+
+安裝包裡的 `install.sh`、`install.bat`、`README.md`、`USAGE.md` 都沒有收進 repo：
+腳本脫離原始安裝包就跑不起來，說明文件則是那份 zip 的隨附文件，留在原處即可。
+
+已實測（Python 3.11）：`--help` 正常；簡體 TXT 轉出來是道地繁中
+（数据结构→資料結構、算法→演算法、计算机→電腦，不是單純字符替換）；
+PDF 兩章正確拆成 `^ch-01` / `^ch-02` 錨點，YAML frontmatter 與 callout 摘要框都對。
+
+### 與原始 zip 的兩處差異（推 repo 時產生，已實測無影響）
+
+這個 session 的 git push 憑證中途失效，只能改用 GitHub API 逐檔推送，
+過程中有兩個檔案被動到。兩處都保留在 repo 裡，記錄如下：
+
+| 檔案 | 差異 | 影響 |
+| --- | --- | --- |
+| `doc-to-md/scripts/doc_to_md.py` | 4 行正規表示式裡的 Unicode 逸出寫法（反斜線 u4e00 到反斜線 u9fff）變成等價的字面字元 `一-鿿` | 無。`re` 模組對兩種寫法解析出同一個字元類別；已用含 `numbered` 規則與檔名淨化的測試檔比對，兩版輸出位元組相同 |
+| `rightproblem-coach/references/template.html` | 檔尾多一個換行 | 無。HTML 不受影響 |
+
+要位元組完全等同原始 zip，在 git push 正常的 session 裡重推一次即可。
+
+**一個小地雷**：輸出檔名固定是「原檔名 + `_知識庫.md`」。
+所以 `test.pdf` 和 `test.txt` 轉到同一個資料夾時，後跑的會蓋掉先跑的。
+同名不同副檔名的檔案記得分開輸出目錄。
+
+---
+
+## 五、法律（這個是 plugin，不在 `.claude/skills/` 裡）
+
+### taiwan-claude-legal — 台灣法律合約審查
+
+[tern/taiwan-claude-legal](https://github.com/tern/taiwan-claude-legal)，MIT，v1.1.0。
+用台灣法規對合約做風險審查：NDA、勞動契約、服務合約、股東協議、隱私權政策。
+
+內建法條全文（從法務部全國法規資料庫抓的）：
+
+| 法規 | 條文檔行數 |
+| --- | --- |
+| 民法 | 4,649 |
+| 公司法 | 1,688 |
+| 著作權法 | 527 |
+| 勞動基準法 | 332 |
+| 個人資料保護法 | 224 |
+
+它提供 skill `taiwan-legal-audit` 和斜線指令 `/audit`。
+
+**為什麼不像上面那些直接複製進 `.claude/skills/`：**
+
+1. `skills/taiwan-legal-audit/SKILL.md` 明寫「You MUST read the relevant `articles.md` files from `laws/`」，
+   那是**相對 plugin 根目錄**的路徑。只搬 skill 資料夾，法條就找不到了。
+2. 上游有 GitHub Action 每天自動更新法條（`.github/workflows/update-laws.yml`）。
+   凍結一份快照進這個 repo，法條會過時 —— 拿舊法條審合約比不審更糟。
+
+所以改成在 `.claude/settings.json` 宣告 marketplace，讓 Claude Code 自己去抓、自己更新。
+
+**這個 repo 已經設好了**（`.claude/settings.json`），clone 下來的人第一次開 session 時
+Claude Code 會提示安裝。要手動裝或想裝成全域的：
+
+```bash
+claude plugin marketplace add tern/taiwan-claude-legal
+claude plugin install taiwan-claude-legal
+```
+
+確認裝好：
+
+```bash
+claude plugin details taiwan-claude-legal
+```
+
+常駐 context 成本約 131 tokens（法條本文是要用到才讀，不會一直掛著）。
+
+**用法**
+
+```text
+/audit 幫我看這份 NDA：contracts/nda.md
+把 劇本外包合約.docx 用台灣勞基法和著作權法審一遍。
+```
+
+這是輔助工具，不是律師。簽之前該找律師還是要找。
+
+---
+
+## 六、政府開放資料 / 法規（自己寫的，不是複製上游）
+
+這兩個是照著實際打過的 API 行為寫出來的，不是抄文件。已同時裝成
+**個人技能**（`~/.claude/skills/`，所有專案都能用）和專案技能。
+
+| 資料夾 | 用途 | 資料來源 |
+| --- | --- | --- |
+| `data-gov-tw` | 查／下載政府開放資料平臺的資料集 | [data.gov.tw](https://data.gov.tw) |
+| `moj-law` | 查法規條文原文、編章節、關鍵字搜尋 | [全國法規資料庫](https://law.moj.gov.tw) + [kong0107 鏡像](https://github.com/kong0107/mojLawSplitJSON) |
+
+### data.gov.tw：實測釐清的三件事
+
+1. **`/api/v1/datasets` 不存在**（回 404）。網路上很多文章寫這個路徑。
+   實際可用的是 `/api/v2/rest/dataset/{數字ID}`，而且結尾一定要數字，
+   接 `search`／`list` 會回「Expected number」。
+2. **查詢／清單要 API 金鑰**，用 `Authorization: <金鑰>` 標頭，**不是** `Bearer`。
+   沒金鑰就到網站上找 ID（網站搜尋是前端渲染的，爬 HTML 拿不到結果）。
+3. **平臺只存中介資料，檔案在各機關自己的伺服器上。**
+   所以會遇到編碼宣告錯誤、憑證鏈不完整。腳本會實際試解編碼，
+   TLS 失敗時給診斷而不是 traceback——**不繞過憑證驗證**。
+
+### moj-law：kong0107 三個 repo 的版本審核
+
+| repo | 最新 tag | 判斷 |
+| --- | --- | --- |
+| **`mojLawSplitJSON`** | `20260814_arrange` | **用這個**，688 個 tag，仍在更新 |
+| `mojLawSplitXML` | `20260807` | 切自舊版 XML，274 個 tag，落後 |
+| `mojLawSplit` | 2022 | 只有程式碼沒資料，要自己重跑轉檔 |
+
+實測 `freshness`：官方資料日 **2026-08-21**、鏡像 **2026-08-14**。
+官方比較新但是整包 25 MB 單檔；鏡像是一法一檔還多了 `divisions`
+編章節樹。要最新用官方，要查單條用鏡像。
+
+**一個會全錯的細節**：鏡像的 `articles[].number` 是 **條次 × 100 + 之N**，
+第 15 條是 `1500`、第 15 條之1 是 `1501`。直接當條次用會整批對不上。
+
+### 用法
+
+```bash
+M=~/.claude/skills/moj-law/scripts/mojlaw.py
+python3 $M article B0000001 184     # 民法第184條
+python3 $M article B0000001 15-1    # 「之N」寫 15-1
+python3 $M grep J0070017 攝影        # 著作權法裡搜關鍵字
+python3 $M find 勞動基準             # 用名稱找 pcode
+python3 $M freshness                 # 比對官方與鏡像日期
+
+S=~/.claude/skills/data-gov-tw/scripts/datagov.py
+python3 $S meta 6019                # 中介資料
+python3 $S fetch 8409 --out d.csv   # 下載實際資料
+```
+
+`moj-law` 是 `taiwan-claude-legal`（第五節）的資料層：
+前者負責把正確條文抓出來，後者負責拿條文做合約審查。
+
+---
+
+## 沒辦法裝進這裡的三個
+
+那份 Top 10 清單裡有三個不是 Claude Code skill，得各自安裝：
+
+| 項目 | 為什麼 | 怎麼裝 |
+| --- | --- | --- |
+| **GOG (Workspace CLI)** #6 | OpenClaw 專用，不是 skill 格式 | `openclaw skills install @steipete/gog`（要先有 OpenClaw） |
+| **Security Unbroker** #3 | Hermes-native，跑在 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) 上 | `hermes skills install official/security/unbroker`（要先有 Hermes） |
+| **Shannon Pentester** #4 | 是一整套獨立應用（pnpm monorepo + Temporal worker + 瀏覽器自動化），不是 skill | `npx @keygraph/shannon setup`，見 [KeygraphHQ/shannon](https://github.com/KeygraphHQ/shannon) |
+
+Shannon 會對執行中的目標站真的打 exploit，**只能對自己擁有或已獲授權的系統跑**。
+它另外需要 LLM API key 和一個跑起來的目標應用，所以沒有放進這個 repo。
+
+---
+
+## 怎麼用
+
+在對話裡描述需求，Claude 通常會自己挑對的 skill；要指定就打斜線：
+
+```text
+/improve 掃一下這個 repo，給我前五個最值得動的改進點。
+/last30days AI 影片工具
+/watch https://www.youtube.com/watch?v=xxxx 這支影片在講什麼？
+/humanizer-zh-tw 幫我把 劇本/紅衣/大綱.md 的語氣改自然一點。
+/text-watermark-cleaner-zh-tw 先檢查 article.md 有沒有隱形字元，先不要改內容。
+/animation-reference 我想讓產品卡片展開成全螢幕詳情頁，但不知道這動畫叫什麼。
+/rightproblem-coach 我團隊交付一直延遲，幫我分析這個問題。
+/doc-to-md 幫我把這個 PDF 轉成 Markdown：~/Desktop/book.pdf
+/audit 幫我看這份 NDA：contracts/nda.md
+/moj-law 民法第184條的原文給我。
+/data-gov-tw 幫我抓 data.gov.tw 8409 這個資料集。
+```
+
+### text-watermark-cleaner 附帶的腳本（已在 Python 3.11 實測）
+
+```bash
+python3 .claude/skills/text-watermark-cleaner-zh-tw/scripts/inspect_text.py article.md
+python3 .claude/skills/text-watermark-cleaner-zh-tw/scripts/clean_text.py \
+  article.md -o article.cleaned.md --stats
+```
+
+---
+
+## 想改成全域安裝（所有專案都能用）
+
+**macOS / Linux**
+
+```bash
+cp -R .claude/skills/*/ ~/.claude/skills/
+```
+
+**Windows PowerShell**
+
+```powershell
+Get-ChildItem .\.claude\skills -Directory |
+  ForEach-Object { Copy-Item -Recurse $_.FullName "$env:USERPROFILE\.claude\skills\" }
+```
+
+## 更新
+
+`.claude/skills/` 底下的全部是直接複製上游的，要更新就重抓一次對應 repo 再蓋掉。
+
+taiwan-claude-legal 是 plugin，不用手動更新：
+
+```bash
+claude plugin update taiwan-claude-legal
+```

@@ -1,0 +1,93 @@
+{
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "react",
+    "react-perf",
+    "jsx-a11y",
+    "oxc"
+  ],
+  "jsPlugins": ["./scripts/lint/no-loose-text.ts"],
+  "categories": {
+    "correctness": "error"
+  },
+  "ignorePatterns": [
+    "**/mockServiceWorker.js",
+    "*.gen.ts",
+    "src/components/ui/**/*.tsx",
+    "containers/**"
+  ],
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-assertions": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unsafe-type-assertion": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "typescript/no-unnecessary-condition": "warn",
+    "eslint/no-console": "error",
+    "unicorn/prefer-optional-catch-binding": "error",
+    "react/rules-of-hooks": "error",
+    "openstory/no-loose-text": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "#db-client",
+            "message": "Only db/scoped.ts and auth/config.ts may import #db-client"
+          },
+          {
+            "name": "@/lib/db/scoped",
+            "importNames": ["createScopedDb"],
+            "message": "createScopedDb only allowed in middleware.ts, workflow/base-workflow.ts, and authorized route handlers. Use context.scopedDb."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.spec.ts", "*.gen.ts", "*.stories.tsx"],
+      "rules": {
+        "typescript/no-explicit-any": "warn",
+        "typescript/no-floating-promises": "off",
+        "eslint/no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "scripts/**/*.ts",
+        "e2e/**/*.ts",
+        "src/lib/observability/logger.ts",
+        "src/lib/mocks/**/*.ts"
+      ],
+      "rules": {
+        "react/rules-of-hooks": "off",
+        "eslint/no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "**/db/scoped.ts",
+        "**/db/client.ts",
+        "**/auth/config.ts",
+        "**/functions/middleware.ts",
+        "**/functions/stripe-webhook-middleware.ts",
+        "**/workflow/base-workflow.ts",
+        "**/cron/reconcile-all.ts",
+        "**/cron/reconcile-fal-billing.ts",
+        "**/cron/refresh-fal-pricing.ts",
+        "**/ai/fal-pricing-live.ts",
+        "**/openrouter/callback.ts",
+        "**/lib/test/seed.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
+}
